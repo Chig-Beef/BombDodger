@@ -6,6 +6,15 @@ type Input struct {
 	weights []float32
 }
 
+func newInput(numLinks int) Input {
+	i := Input{}
+
+	i.weights = make([]float32, numLinks)
+	i.links = make([]*Node, numLinks)
+
+	return i
+}
+
 // Calculate output
 func (input *Input) push() {
 	for i := 0; i < len(input.links); i++ {
@@ -18,3 +27,4 @@ func (input *Input) push() {
 func (input *Input) set() {
 	input.num = 0
 }
+

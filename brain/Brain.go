@@ -18,41 +18,43 @@ func NewBrain(nInputs, nLayers, nDepth, nOutputs int) Brain {
 	brain := Brain{}
 
 	// Creating all the nodes, inputs, outputs
+	brain.inputs = make([]Input, nInputs)
 	for i := 0; i < nInputs; i++ {
-		brain.inputs = append(brain.inputs, Input{})
+		brain.inputs[i] = newInput(nDepth)
 	}
 
-	for i := 0; i < nLayers; i++ {
-		brain.layers = append(brain.layers, Layer{})
-		for j := 0; j < nDepth; j++ {
-			brain.layers[i].nodes = append(brain.layers[i].nodes, Node{})
-			brain.layers[i].nodes[j].lastLayer = false
-		}
+	brain.layers = make([]Layer, nLayers)
+	for i := 0; i < nLayers-1; i++ {
+		brain.layers[i] = newLayer(nDepth, nDepth, false)
+	}
+	{
+		i := nLayers-1
+		brain.layers[i] = newLayer(nDepth, nOutputs, true)
 	}
 
+	brain.outputs = make([]Output, nOutputs)
 	for i := 0; i < nOutputs; i++ {
-		brain.outputs = append(brain.outputs, Output{})
+		brain.outputs[i] = Output{}
 	}
 
 	// Creating the links between these parts
 	for i := 0; i < nInputs; i++ {
 		for j := 0; j < nDepth; j++ {
-			brain.inputs[i].links = append(brain.inputs[i].links, &brain.layers[0].nodes[j])
+			brain.inputs[i].links[j] = &brain.layers[0].nodes[j]
 		}
 	}
 
 	for i := 0; i < nLayers-1; i++ {
 		for j := 0; j < nDepth; j++ {
 			for k := 0; k < nDepth; k++ {
-				brain.layers[i].nodes[j].linksN = append(brain.layers[i].nodes[j].linksN, &brain.layers[i+1].nodes[k])
+				brain.layers[i].nodes[j].linksN[k] = &brain.layers[i+1].nodes[k]
 			}
 		}
 	}
 
 	for i := 0; i < nDepth; i++ {
-		brain.layers[len(brain.layers)-1].nodes[i].lastLayer = true
 		for j := 0; j < nOutputs; j++ {
-			brain.layers[len(brain.layers)-1].nodes[i].linksO = append(brain.layers[len(brain.layers)-1].nodes[i].linksO, &brain.outputs[j])
+			brain.layers[len(brain.layers)-1].nodes[i].linksO[j] = &brain.outputs[j]
 		}
 	}
 
@@ -63,7 +65,7 @@ func (brain *Brain) Randomize() {
 	// Inputs
 	for i := 0; i < len(brain.inputs); i++ {
 		for j := 0; j < len(brain.inputs[i].links); j++ {
-			brain.inputs[i].weights = append(brain.inputs[i].weights, randWeight())
+			brain.inputs[i].weights[j] = randWeight()
 		}
 	}
 
@@ -79,7 +81,7 @@ func (brain *Brain) Randomize() {
 			}
 
 			for k := 0; k < top; k++ {
-				brain.layers[i].nodes[j].weights = append(brain.layers[i].nodes[j].weights, randWeight())
+				brain.layers[i].nodes[j].weights[k] = randWeight()
 			}
 		}
 	}

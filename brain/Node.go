@@ -10,6 +10,23 @@ type Node struct {
 	lastLayer bool
 }
 
+
+func newNode(numLinks int, isLast bool) Node {
+	n := Node{}
+
+	n.lastLayer = isLast
+
+	if isLast {
+		n.linksO = make([]*Output, numLinks)
+	} else {
+		n.linksN = make([]*Node, numLinks)
+	}
+
+	n.weights = make([]float32, numLinks)
+
+	return n
+}
+
 // Calculate output
 func (node *Node) push() {
 	if node.num > 0 {
