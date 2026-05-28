@@ -64,26 +64,12 @@ func NewBrain(nInputs, nLayers, nDepth, nOutputs int) Brain {
 func (brain *Brain) Randomize() {
 	// Inputs
 	for i := 0; i < len(brain.inputs); i++ {
-		for j := 0; j < len(brain.inputs[i].links); j++ {
-			brain.inputs[i].weights[j] = randWeight()
-		}
+		brain.inputs[i].randomize()
 	}
 
 	// Layers
-	var top int
 	for i := 0; i < len(brain.layers); i++ {
-		for j := 0; j < len(brain.layers[i].nodes); j++ {
-			// Check if it's part of the last layer
-			if !brain.layers[i].nodes[j].lastLayer {
-				top = len(brain.layers[i].nodes[j].linksN)
-			} else {
-				top = len(brain.layers[i].nodes[j].linksO)
-			}
-
-			for k := 0; k < top; k++ {
-				brain.layers[i].nodes[j].weights[k] = randWeight()
-			}
-		}
+		brain.layers[i].randomize()
 	}
 
 	// Outputs don't have links, so no loop is needed for them

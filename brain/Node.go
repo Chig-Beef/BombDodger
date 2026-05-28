@@ -10,7 +10,6 @@ type Node struct {
 	lastLayer bool
 }
 
-
 func newNode(numLinks int, isLast bool) Node {
 	n := Node{}
 
@@ -50,4 +49,10 @@ func (node *Node) set() {
 	node.num = 0
 	node.infs = 0
 	node.fired = false
+}
+
+func (node *Node) randomize() {
+	for i := 0; i < len(node.weights); i++ {
+		node.weights[i] = randWeight()
+	}
 }

@@ -28,3 +28,8 @@ func (input *Input) set() {
 	input.num = 0
 }
 
+func (input *Input) randomize() {
+	for i := 0; i < len(input.weights); i++ {
+		input.weights[i] = randWeight()
+	}
+}

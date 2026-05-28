@@ -28,3 +28,9 @@ func (layer *Layer) push() {
 		layer.nodes[i].push()
 	}
 }
+
+func (layer *Layer) randomize() {
+	for i := 0; i < len(layer.nodes); i++ {
+		layer.nodes[i].randomize()
+	}
+}
