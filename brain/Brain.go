@@ -1,0 +1,282 @@
+package brain
+
+import (
+	"fmt"
+	"errors"
+	"math/rand"
+	"strconv"
+	"strings"
+)
+
+type Brain struct {
+	inputs  []Input
+	layers  []Layer
+	outputs []Output
+}
+
+func NewBrain(nInputs, nLayers, nDepth, nOutputs int) Brain {
+	brain := Brain{}
+
+	// Creating all the nodes, inputs, outputs
+	for i := 0; i < nInputs; i++ {
+		brain.inputs = append(brain.inputs, Input{})
+	}
+
+	for i := 0; i < nLayers; i++ {
+		brain.layers = append(brain.layers, Layer{})
+		for j := 0; j < nDepth; j++ {
+			brain.layers[i].nodes = append(brain.layers[i].nodes, Node{})
+			brain.layers[i].nodes[j].lastLayer = false
+		}
+	}
+
+	for i := 0; i < nOutputs; i++ {
+		brain.outputs = append(brain.outputs, Output{})
+	}
+
+	// Creating the links between these parts
+	for i := 0; i < nInputs; i++ {
+		for j := 0; j < nDepth; j++ {
+			brain.inputs[i].links = append(brain.inputs[i].links, &brain.layers[0].nodes[j])
+		}
+	}
+
+	for i := 0; i < nLayers-1; i++ {
+		for j := 0; j < nDepth; j++ {
+			for k := 0; k < nDepth; k++ {
+				brain.layers[i].nodes[j].linksN = append(brain.layers[i].nodes[j].linksN, &brain.layers[i+1].nodes[k])
+			}
+		}
+	}
+
+	for i := 0; i < nDepth; i++ {
+		brain.layers[len(brain.layers)-1].nodes[i].lastLayer = true
+		for j := 0; j < nOutputs; j++ {
+			brain.layers[len(brain.layers)-1].nodes[i].linksO = append(brain.layers[len(brain.layers)-1].nodes[i].linksO, &brain.outputs[j])
+		}
+	}
+
+	return brain
+}
+
+func (brain *Brain) Randomize() {
+	// Inputs
+	for i := 0; i < len(brain.inputs); i++ {
+		for j := 0; j < len(brain.inputs[i].links); j++ {
+			brain.inputs[i].weights = append(brain.inputs[i].weights, randWeight())
+		}
+	}
+
+	// Layers
+	var top int
+	for i := 0; i < len(brain.layers); i++ {
+		for j := 0; j < len(brain.layers[i].nodes); j++ {
+			// Check if it's part of the last layer
+			if !brain.layers[i].nodes[j].lastLayer {
+				top = len(brain.layers[i].nodes[j].linksN)
+			} else {
+				top = len(brain.layers[i].nodes[j].linksO)
+			}
+
+			for k := 0; k < top; k++ {
+				brain.layers[i].nodes[j].weights = append(brain.layers[i].nodes[j].weights, randWeight())
+			}
+		}
+	}
+
+	// Outputs don't have links, so no loop is needed for them
+}
+
+// Give input
+func (brain *Brain) In(val float32, input int) {
+	if input < 0 || input >= len(brain.inputs) {
+		fmt.Println("Input N out of range")
+		return
+	}
+
+	brain.inputs[input].num = val
+}
+
+// Calculate output
+func (brain *Brain) Push() {
+	// Send data through the neural network
+	for i := 0; i < len(brain.inputs); i++ {
+		brain.inputs[i].push()
+	}
+
+	for i := 0; i < len(brain.layers); i++ {
+		brain.layers[i].push()
+	}
+}
+
+func (brain *Brain) Dump() ([]bool, []float32) {
+	// Make slices ready for outputs
+	boolOutput := make([]bool, len(brain.outputs))
+	floatOutput := make([]float32, len(brain.outputs))
+
+	// Put the data from the brain into the slices
+	for i := 0; i < len(brain.outputs); i++ {
+		b, f := brain.outputs[i].calc()
+		boolOutput[i] = b
+		floatOutput[i] = f
+	}
+	return boolOutput, floatOutput
+}
+
+// Reset to default
+func (brain *Brain) Set() {
+	for i := 0; i < len(brain.inputs); i++ {
+		brain.inputs[i].set()
+	}
+
+	for i := 0; i < len(brain.layers); i++ {
+		brain.layers[i].set()
+	}
+
+	for i := 0; i < len(brain.outputs); i++ {
+		brain.outputs[i].set()
+	}
+}
+
+func randWeight() float32 {
+	// Creates a random float between -1 and 1
+	return rand.Float32()*2 - 1
+}
+
+func (brain *Brain) String() string {
+	// Converts a brain into string format for saving
+
+	outputString := ""
+
+	// Inputs
+	for _, input := range brain.inputs {
+		for _, weight := range input.weights {
+			outputString += strconv.FormatFloat(float64(weight), 'f', -1, 32)
+			outputString += "_"
+		}
+		outputString = outputString[:len(outputString)-1] + "+"
+	}
+	outputString = outputString[:len(outputString)-1] + "="
+
+	// Nodes
+	for _, layer := range brain.layers {
+		for _, node := range layer.nodes {
+			for _, weight := range node.weights {
+				outputString += strconv.FormatFloat(float64(weight), 'f', -1, 32)
+				outputString += "_"
+			}
+			outputString = outputString[:len(outputString)-1] + "+"
+		}
+		outputString = outputString[:len(outputString)-1] + "!"
+	}
+
+	// Outputs
+	outputString = outputString[:len(outputString)-1] + "=" + strconv.Itoa(len(brain.outputs))
+
+	return outputString
+}
+
+func ConvBrainFromStr(data string) (Brain, error) {
+	// Create a Brain from string
+
+	brain := Brain{}
+	splitData := strings.Split(data, "=")
+
+	if len(splitData) != 3 {
+		return brain, errors.New("expected inputs, layers, outputs, did not get the right amount to hold these 3 values")
+	}
+
+	// Inputs
+	inputs := strings.Split(splitData[0], "+")
+	for i, input := range inputs {
+		temp := strings.Split(input, "_")
+		brain.inputs = append(brain.inputs, Input{})
+
+		for _, weight := range temp {
+			temp, err := strconv.ParseFloat(weight, 32)
+			if err != nil {
+				return brain, errors.New("a weight in a brain wasn't in the correct format")
+			}
+
+			brain.inputs[i].weights = append(brain.inputs[i].weights, float32(temp))
+		}
+	}
+
+	// Layers
+	layers := strings.Split(splitData[1], "!")
+	for i, layer := range layers {
+		tempLayer := strings.Split(layer, "+")
+		brain.layers = append(brain.layers, Layer{})
+
+		for j, node := range tempLayer {
+			tempNode := strings.Split(node, "_")
+			brain.layers[i].nodes = append(brain.layers[i].nodes, Node{})
+
+			for _, weight := range tempNode {
+				temp, err := strconv.ParseFloat(weight, 32)
+				if err != nil {
+					return brain, errors.New("a weight in a brain wasn't in the correct format")
+				}
+
+				brain.layers[i].nodes[j].weights = append(brain.layers[i].nodes[j].weights, float32(temp))
+			}
+		}
+	}
+
+	// Outputs
+	outputs, err := strconv.Atoi(splitData[2])
+	if err != nil {
+		return brain, errors.New("the amount of outputs was not a valid number")
+	}
+	for i := 0; i < outputs; i++ {
+		brain.outputs = append(brain.outputs, Output{})
+	}
+
+	return brain, nil
+}
+
+func pickRandWeight(paWeight, pbWeight float32, rndFactor float32) float32 {
+	// Random chance to get something completely different
+	if rand.Float32() < rndFactor {
+		return randWeight()
+	}
+
+	// Which parent this part of the brain comes from
+	if rand.Intn(2) == 0 {
+		return paWeight
+	} else {
+		return pbWeight
+	}
+}
+
+func (child *Brain) Merge(parentA, parentB *Brain, rndFactor float32) {
+	// Copying over brain information into the child
+	for i := 0; i < len(child.inputs); i++ {
+		for j := 0; j < len(child.inputs[i].links); j++ {
+			paWeight := parentA.inputs[i].weights[j]
+			pbWeight := parentB.inputs[i].weights[j]
+			newWeight := pickRandWeight(paWeight, pbWeight, rndFactor)
+			child.inputs[i].weights[j] = newWeight
+		}
+	}
+
+	for i := 0; i < len(child.layers); i++ {
+		for j := 0; j < len(child.layers[i].nodes); j++ {
+			if !child.layers[i].nodes[j].lastLayer { // Last layer
+				for k := 0; k < len(child.layers[i].nodes[j].linksN); k++ {
+					paWeight := parentA.layers[i].nodes[j].weights[k]
+					pbWeight := parentB.layers[i].nodes[j].weights[k]
+					newWeight := pickRandWeight(paWeight, pbWeight, rndFactor)
+					child.layers[i].nodes[j].weights[k] = newWeight
+				}
+			} else {
+				for k := 0; k < len(child.layers[i].nodes[j].linksO); k++ {
+					paWeight := parentA.layers[i].nodes[j].weights[k]
+					pbWeight := parentB.layers[i].nodes[j].weights[k]
+					newWeight := pickRandWeight(paWeight, pbWeight, rndFactor)
+					child.layers[i].nodes[j].weights[k] = newWeight
+				}
+			}
+		}
+	}
+}
